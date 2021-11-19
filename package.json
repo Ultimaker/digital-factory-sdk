@@ -2,11 +2,11 @@
   "name": "digital-factory-sdk",
   "version": "1.0.0",
   "description": "Try out the Ultimaker Digital Factory API",
-  "main": "index.js",
+  "main": "main.ts",
   "scripts": {
     "start": "tsc && node dist/main.js"
   },
-  "author": "Simon Edwards",
+  "author": "Ultimaker <software-cloud@ultimaker.com>",
   "license": "ICS",
   "dependencies": {
     "@types/node": "^16.11.7",

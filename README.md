@@ -1,8 +1,5 @@
-# Digital Factory SDK
-## How to run
-Before you run this demo application make sure you have configured it properly. First you need to add a `.env` file in the `secrets` folder and populate it using the `example.env` file. After that just run:
-```sh
-npm install
+# Ultimaker Digital Factory SDK
 
-npm run start
-```
+This repository contains example code for working with the Ultimaker Digital Factory API.
+
+The main API documentation is located here: https://docs.api.ultimaker.com/

@@ -3,7 +3,7 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 import { default as fetch } from 'node-fetch';
 import * as fs from 'fs';
 import * as env from 'dotenv';
-env.config({ path: './secrets/.env' });
+env.config({ path: '../secrets/.env' });
 
 const print = console.log.bind(console);
 
@@ -177,7 +177,7 @@ class DigitalFactoryDemo {
             `${API_ROOT_URL}/cura/v1/projects`,
             {
                 data: {
-                    display_name: name 
+                    display_name: name
                 }
             }
         );
@@ -211,10 +211,10 @@ class DigitalFactoryDemo {
 
     async addCommentToProject(projectId: string, comment: string): Promise<void> {
         const response = await this.httpPutDigitalFactory(
-            `${API_ROOT_URL}/cura/v1/projects/${projectId}/comments`, 
+            `${API_ROOT_URL}/cura/v1/projects/${projectId}/comments`,
             {
                 data: {
-                    body: comment 
+                    body: comment
                 }
             }
         );
@@ -281,7 +281,7 @@ async function main(): Promise<void> {
     } else {
         print("No running print jobs found. Sometimes it takes up to 10 second for new print jobs to show up.\n");
     }
-    
+
 
     print("Searching projects.")
     const projects = await demo.searchProjects();

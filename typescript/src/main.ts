@@ -8,6 +8,10 @@ env.config({ path: '../config.env' });
 
 const print = console.log.bind(console);
 
+function prettyJSON(jsonObject: any): string {
+    return JSON.stringify(jsonObject, null, 4);
+}
+
 const DEFAULT_CLOUD_ACCOUNT_API_ROOT = "https://account.ultimaker.com";
 const OAUTH_SERVER_URL = DEFAULT_CLOUD_ACCOUNT_API_ROOT;
 const API_ROOT_URL = "https://api.ultimaker.com"
@@ -89,7 +93,7 @@ class DigitalFactoryDemo {
 
 		this._tokenPair = await this._requestAccessToken(code, this._pkceVerifier);
 
-        print(`Access token: ${JSON.stringify(this._tokenPair.access_token)}`);
+        print(`Access token: ${prettyJSON(this._tokenPair.access_token)}`);
 
 		res.writeHead(200);
 		res.end('Sign in finished, you can now close this window.');
@@ -154,7 +158,7 @@ class DigitalFactoryDemo {
         const response = await fetch(url, {
             method: 'PUT',
             headers: headers,
-            body: JSON.stringify(body)
+            body: prettyJSON(body)
         });
         return response.json();
     }
@@ -168,7 +172,7 @@ class DigitalFactoryDemo {
         const response = await fetch(url, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify(body)
+            body: prettyJSON(body)
         });
         return response.json();
     }
@@ -283,7 +287,7 @@ async function main(): Promise<void> {
     const printJobs = await demo.getRunningPrintJobs();
     if (printJobs.length > 0) {
         print(`Total print jobs retrieved: ${printJobs.length}`);
-        print(`First print job retrieved: ${JSON.stringify(printJobs[0])}\n`);
+        print(`First print job retrieved: ${prettyJSON(printJobs[0])}\n`);
     } else {
         print("No running print jobs found. Sometimes it takes up to 10 second for new print jobs to show up.\n");
     }
@@ -292,7 +296,7 @@ async function main(): Promise<void> {
     const projects = await demo.searchProjects();
     if (projects.length > 0) {
         print(`Total projects retrieved: ${projects.length}`);
-        print(`First project retrieved: ${JSON.stringify(projects[0])}\n`);
+        print(`First project retrieved: ${prettyJSON(projects[0])}\n`);
     } else {
         print("No projects found.\n");
     }

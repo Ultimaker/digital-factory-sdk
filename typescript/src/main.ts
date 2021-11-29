@@ -2,8 +2,9 @@ import { createHash, randomBytes } from 'crypto';
 import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 import { default as fetch } from 'node-fetch';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as env from 'dotenv';
-env.config({ path: '../secrets/.env' });
+env.config({ path: '../secrets/example.env' });
 
 const print = console.log.bind(console);
 
@@ -184,9 +185,9 @@ class DigitalFactoryDemo {
         return response.data;
     }
 
-    async uploadFileToProject(libraryProjectId: string): Promise<any> {""
-        const filename = process.env.UFP_PATH.split('/').pop();
-        const fileContents = fs.readFileSync(process.env.UFP_PATH);
+    async uploadFileToProject(libraryProjectId: string, filePath: string): Promise<any> {
+        const filename = path.posix.basename(filePath);
+        const fileContents = fs.readFileSync(filePath);
         const contentLength = fileContents.byteLength;
         const mimeType = "application/x-ufp";
 
@@ -221,8 +222,7 @@ class DigitalFactoryDemo {
         return response.data;
     }
 
-    async submitPrintJob(jobId: string): Promise<any> {
-        const clusterId = process.env.CLUSTER_ID
+    async submitPrintJob(jobId: string, clusterId: string): Promise<any> {
         const response = await this.httpPostDigitalFactory(
             `${API_ROOT_URL}/connect/v1/clusters/${clusterId}/print/${jobId}`,
             { data: {}}
@@ -264,14 +264,20 @@ async function main(): Promise<void> {
     await demo.addCommentToProject(library_project_id, "Demo comment");
     print("Comment added.\n");
 
-    print("Uploading file to demo project...");
-    const { job_id } = await demo.uploadFileToProject(library_project_id);
-    print(`Uploaded file with ID: ${job_id}\n`);
-    print(`Visit https://digitalfactory.ultimaker.com/app/library/project/${library_project_id} to see your project\n`);
+    const clusterId = process.env.CLUSTER_ID;
+    const ufpPath = process.env.UFP_PATH;
+    if (clusterId !== "your-cluster-id" && ufpPath !== "path/to/your/file.ufp") {
+        print("Uploading file to demo project...");
+        const { job_id } = await demo.uploadFileToProject(library_project_id, ufpPath);
+        print(`Uploaded file with ID: ${job_id}\n`);
+        print(`Visit https://digitalfactory.ultimaker.com/app/library/project/${library_project_id} to see your project\n`);
 
-    print("Submitting a print job");
-    const { job_instance_uuid } = await demo.submitPrintJob(job_id);
-    print(`Submitted print job with ID: ${job_instance_uuid}\n`);
+        print("Submitting a print job");
+        const { job_instance_uuid } = await demo.submitPrintJob(job_id, clusterId);
+        print(`Submitted print job with ID: ${job_instance_uuid}\n`);
+    } else {
+        print(`(Skipping print job submission. Configure a cluster ID and UFP in 'example.env' for this part of the demo.)'`);
+    }
 
     print("Getting running print jobs.");
     const printJobs = await demo.getRunningPrintJobs();
@@ -281,7 +287,6 @@ async function main(): Promise<void> {
     } else {
         print("No running print jobs found. Sometimes it takes up to 10 second for new print jobs to show up.\n");
     }
-
 
     print("Searching projects.")
     const projects = await demo.searchProjects();

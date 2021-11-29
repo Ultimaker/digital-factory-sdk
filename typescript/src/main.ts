@@ -27,9 +27,9 @@ interface TokenResponse {
 
 class DigitalFactoryDemo {
 	private _callbackServer: Server = null;
-	private _state: string = null
-	private _pkceVerifier: string = null
-	private _tokenPair: TokenResponse = null
+	private _state: string = null;
+	private _pkceVerifier: string = null;
+	private _tokenPair: TokenResponse = null;
 
     private _token_url: string = null;
     private _authorizationUrl= `${OAUTH_SERVER_URL}/authorize`;
@@ -39,8 +39,8 @@ class DigitalFactoryDemo {
     private _signInCompleteResolve: () => void = null;
 
 	signIn(): Promise<void> {
-		this._callbackServer = createServer(this._handleRequest.bind(this))
-		this._callbackServer.listen(CALLBACK_SERVER_PORT)
+		this._callbackServer = createServer(this._handleRequest.bind(this));
+		this._callbackServer.listen(CALLBACK_SERVER_PORT);
 
         this._token_url = `${OAUTH_SERVER_URL}/token`;
         this._redirectUri = `http://localhost:${CALLBACK_SERVER_PORT}/callback`;
@@ -82,7 +82,7 @@ class DigitalFactoryDemo {
             return;
         }
 
-		const state = url.searchParams.get('state')
+		const state = url.searchParams.get('state');
 		if (!state || state != this._state) {
             return;
         }
@@ -92,7 +92,7 @@ class DigitalFactoryDemo {
         print(`Access token: ${JSON.stringify(this._tokenPair.access_token)}`);
 
 		res.writeHead(200);
-		res.end('Sign in finished, you can now close this window.')
+		res.end('Sign in finished, you can now close this window.');
 
 		// reset everything
 		this._callbackServer && this._callbackServer.close();
@@ -114,9 +114,9 @@ class DigitalFactoryDemo {
 				code: code,
 				code_verifier: pkceVerifier,
 			})
-		})
+		});
 
-		return tokenResponse.json()
+		return tokenResponse.json();
 	}
 
 	private _generateState(): string {
@@ -199,7 +199,7 @@ class DigitalFactoryDemo {
                 library_project_id: libraryProjectId
             }
         });
-        const uploadUrl = jobUploadResponse.data.upload_url
+        const uploadUrl = jobUploadResponse.data.upload_url;
         print(`upload url: ${uploadUrl}`);
 
         await fetch(uploadUrl, {
@@ -288,7 +288,7 @@ async function main(): Promise<void> {
         print("No running print jobs found. Sometimes it takes up to 10 second for new print jobs to show up.\n");
     }
 
-    print("Searching projects.")
+    print("Searching projects.");
     const projects = await demo.searchProjects();
     if (projects.length > 0) {
         print(`Total projects retrieved: ${projects.length}`);

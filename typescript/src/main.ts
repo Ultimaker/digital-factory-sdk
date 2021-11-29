@@ -4,7 +4,7 @@ import { default as fetch } from 'node-fetch';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as env from 'dotenv';
-env.config({ path: '../secrets/example.env' });
+env.config({ path: '../config.env' });
 
 const print = console.log.bind(console);
 
@@ -276,7 +276,7 @@ async function main(): Promise<void> {
         const { job_instance_uuid } = await demo.submitPrintJob(job_id, clusterId);
         print(`Submitted print job with ID: ${job_instance_uuid}\n`);
     } else {
-        print(`(Skipping print job submission. Configure a cluster ID and UFP in 'example.env' for this part of the demo.)'`);
+        print(`(Skipping print job submission. Configure a cluster ID and UFP in 'config.env' for this part of the demo.)`);
     }
 
     print("Getting running print jobs.");

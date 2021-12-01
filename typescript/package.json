@@ -1,0 +1,18 @@
+{
+  "name": "digital-factory-sdk",
+  "version": "1.0.0",
+  "description": "Try out the Ultimaker Digital Factory API",
+  "main": "main.ts",
+  "scripts": {
+    "start": "tsc && node dist/main.js"
+  },
+  "author": "Ultimaker <software-cloud@ultimaker.com>",
+  "license": "ICS",
+  "dependencies": {
+    "@types/node": "^16.11.7",
+    "@types/node-fetch": "^2.5.12",
+    "dotenv": "^10.0.0",
+    "node-fetch": "^2.6.6",
+    "typescript": "^4.4.4"
+  }
+}

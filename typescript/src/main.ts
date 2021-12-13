@@ -1,8 +1,5 @@
-import * as env from 'dotenv';
 import { DigitalFactoryDemo } from './digital-factory';
-import { print, prettyJSON } from './print';
-
-env.config({ path: '../config.env' });
+import { prettyJSON, print } from './print';
 
 async function main(): Promise<void> {
     const demo = new DigitalFactoryDemo();
@@ -51,4 +48,9 @@ async function main(): Promise<void> {
     }
 }
 
-main().catch(console.error); // eslint-disable-line no-console
+main()
+    .then(() => process.exit(0))
+    .catch((error: unknown) => {
+        console.error(error); // eslint-disable-line no-console
+        process.exit(1);
+    });

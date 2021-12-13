@@ -5,6 +5,7 @@ import {
 import fetch from 'node-fetch';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as env from 'dotenv';
 import { print, prettyJSON } from './print';
 
 const DEFAULT_CLOUD_ACCOUNT_API_ROOT = 'https://account.ultimaker.com';
@@ -12,6 +13,8 @@ const OAUTH_SERVER_URL = DEFAULT_CLOUD_ACCOUNT_API_ROOT;
 const API_ROOT_URL = 'https://api.ultimaker.com';
 
 const CALLBACK_SERVER_PORT = 32118;
+
+env.config({ path: '../config.env' });
 
 const { CLIENT_ID } = process.env;
 const { SCOPES } = process.env;
@@ -67,6 +70,7 @@ export class DigitalFactoryDemo {
         print('');
         return new Promise<void>((resolve, reject) => {
             this._signInCompleteResolve = resolve;
+            process.on('SIGINT', reject);
         });
     }
 
@@ -239,6 +243,11 @@ export class DigitalFactoryDemo {
             status: 'in_progress',
         });
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/connect/v1/print_jobs?${query}`);
+        return response.data;
+    }
+
+    async getClusters(): Promise<any> {
+        const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/connect/v1/clusters`);
         return response.data;
     }
 

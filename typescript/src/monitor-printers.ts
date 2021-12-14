@@ -73,6 +73,23 @@ function csvLine(comparison: Comparison, separator = ';'): string {
 }
 
 /**
+ * Returns a promise that waits for the given amount of milliseconds, with abort support.
+ */
+function awaitAsync(waitMS: number, abortSignal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const onAbort = () => {
+            console.log('Aborting the monitoring...'); // eslint-disable-line no-console
+            resolve();
+        };
+        abortSignal.addEventListener('abort', onAbort);
+        setTimeout(() => {
+            abortSignal.removeEventListener('abort', onAbort);
+            resolve();
+        }, waitMS);
+    });
+}
+
+/**
  * Gets all clusters from the API periodically, writing the response to a JSON file & the comparisons to a CSV file.
  */
 async function monitorClusters({
@@ -80,10 +97,8 @@ async function monitorClusters({
     waitMS = 60000,
     statusDir = '../cluster-monitoring-logs',
 }: MonitorClustersOptions = {}): Promise<void> {
-    let stop = false;
-    process.on('SIGINT', () => {
-        stop = true;
-    });
+    const abort = new AbortController();
+    process.on('SIGINT', () => abort.abort());
 
     const demo = new DigitalFactoryDemo();
     await demo.signIn();
@@ -94,9 +109,10 @@ async function monitorClusters({
 
     try {
         /* eslint-disable no-await-in-loop */
-        while (!stop) {
+        while (!abort.signal.aborted) {
             print('Retrieving clusters...');
             const clusters = await demo.getClusters();
+            if (!clusters) continue; // eslint-disable-line no-continue
             const dateTime = new Date();
             const logFile = `${statusDir}/${dateTime.toISOString().replace(/:/g, '-')}-clusters.json`;
             await writeFile(logFile, prettyJSON(clusters));
@@ -107,14 +123,16 @@ async function monitorClusters({
                 print(`Comparison resulted in ${prettyJSON(comparison)}\n`);
             }
             previous = clusters;
-            await new Promise((resolve) => setTimeout(resolve, waitMS));
+            await awaitAsync(waitMS, abort.signal);
         }
-    } catch (e: unknown) {
-        console.error(e); // eslint-disable-line no-console
-        process.exit(1);
     } finally {
         stream.end();
     }
 }
 
-monitorClusters().then(() => process.exit(0));
+monitorClusters()
+    .then(() => process.exit(0))
+    .catch((error: unknown) => {
+        console.error(error); // eslint-disable-line no-console
+        process.exit(1);
+    });

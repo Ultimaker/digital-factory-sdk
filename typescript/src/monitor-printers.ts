@@ -50,7 +50,7 @@ async function getPreviousClusterStatus(statusDir: string): Promise<ClusterRespo
  * Compares two lists of cluster statuses.
  */
 function compareResults(previous: ClusterResponse[], current: ClusterResponse[], dateTime: Date): Comparison {
-    const getOnlineClusterIds = <T, K extends keyof any>(clusters: ClusterResponse[]): Set<string> => new Set<string>(
+    const getOnlineClusterIds = (clusters: ClusterResponse[]): Set<string> => new Set<string>(
         clusters.filter((cluster) => cluster.is_online).map((cluster) => cluster.cluster_id),
     );
     const previousOnlineIds = getOnlineClusterIds(previous);
@@ -92,29 +92,29 @@ async function monitorClusters({
     let previous = await getPreviousClusterStatus(statusDir);
     const stream = createWriteStream(comparisonFile, { flags: 'a' });
 
-    /* eslint-disable no-await-in-loop */
-    while (!stop) {
-        print('Retrieving clusters...');
-        const clusters = await demo.getClusters();
-        const dateTime = new Date();
-        const logFile = `${statusDir}/${dateTime.toISOString().replace(/:/g, '-')}-clusters.json`;
-        await writeFile(logFile, prettyJSON(clusters));
-        print(`Found ${clusters.length} clusters\n`);
-        if (previous) {
-            const comparison = compareResults(previous, clusters, dateTime);
-            stream.write(`${csvLine(comparison)}\n`);
-            print(`Comparison resulted in ${prettyJSON(comparison)}\n`);
+    try {
+        /* eslint-disable no-await-in-loop */
+        while (!stop) {
+            print('Retrieving clusters...');
+            const clusters = await demo.getClusters();
+            const dateTime = new Date();
+            const logFile = `${statusDir}/${dateTime.toISOString().replace(/:/g, '-')}-clusters.json`;
+            await writeFile(logFile, prettyJSON(clusters));
+            print(`Found ${clusters.length} clusters\n`);
+            if (previous) {
+                const comparison = compareResults(previous, clusters, dateTime);
+                stream.write(`${csvLine(comparison)}\n`);
+                print(`Comparison resulted in ${prettyJSON(comparison)}\n`);
+            }
+            previous = clusters;
+            await new Promise((resolve) => setTimeout(resolve, waitMS));
         }
-        previous = clusters;
-        await new Promise((resolve) => setTimeout(resolve, waitMS));
+    } catch (e: unknown) {
+        console.error(e); // eslint-disable-line no-console
+        process.exit(1);
+    } finally {
+        stream.end();
     }
-
-    stream.end();
 }
 
-monitorClusters()
-    .then(() => process.exit(0))
-    .catch((error: unknown) => {
-        console.error(error); // eslint-disable-line no-console
-        process.exit(1);
-    });
+monitorClusters().then(() => process.exit(0));

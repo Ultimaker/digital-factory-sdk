@@ -5,6 +5,7 @@
   "main": "main.ts",
   "scripts": {
     "start": "tsc && node dist/main.js",
+    "monitor-printers": "tsc && node dist/monitor-printers.js",
     "lint": "npm run lint:ts",
     "lint:fix": "npm run lint:ts:fix",
     "lint:ts": "eslint './src/**/*.{ts,tsx}'",

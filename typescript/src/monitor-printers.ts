@@ -111,18 +111,24 @@ async function monitorClusters({
         /* eslint-disable no-await-in-loop */
         while (!abort.signal.aborted) {
             print('Retrieving clusters...');
-            const clusters = await demo.getClusters();
-            if (!clusters) continue; // eslint-disable-line no-continue
-            const dateTime = new Date();
-            const logFile = `${statusDir}/${dateTime.toISOString().replace(/:/g, '-')}-clusters.json`;
-            await writeFile(logFile, prettyJSON(clusters));
-            print(`Found ${clusters.length} clusters\n`);
-            if (previous) {
-                const comparison = compareResults(previous, clusters, dateTime);
-                stream.write(`${csvLine(comparison)}\n`);
-                print(`Comparison resulted in ${prettyJSON(comparison)}\n`);
+            try {
+                const clusters = await demo.getClusters();
+                if (!clusters) {
+                    continue; // eslint-disable-line no-continue
+                }
+                const dateTime = new Date();
+                const logFile = `${statusDir}/${dateTime.toISOString().replace(/:/g, '-')}-clusters.json`;
+                await writeFile(logFile, prettyJSON(clusters));
+                print(`Found ${clusters.length} clusters\n`);
+                if (previous) {
+                    const comparison = compareResults(previous, clusters, dateTime);
+                    stream.write(`${csvLine(comparison)}\n`);
+                    print(`Comparison resulted in ${prettyJSON(comparison)}\n`);
+                }
+                previous = clusters;
+            } catch (ex) {
+                print('An error occured while fetching cluster data: ', ex);
             }
-            previous = clusters;
             await awaitAsync(waitMS, abort.signal);
         }
     } finally {

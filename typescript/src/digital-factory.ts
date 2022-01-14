@@ -36,6 +36,8 @@ export class DigitalFactoryDemo {
 
     private _tokenPair: TokenResponse = null;
 
+    private _tokenTimestampMs = 0;
+
     private _token_url: string = null;
 
     private _authorizationUrl = `${OAUTH_SERVER_URL}/authorize`;
@@ -95,8 +97,10 @@ export class DigitalFactoryDemo {
         }
 
         this._tokenPair = await this._requestAccessToken(code, this._pkceVerifier);
+        this._tokenTimestampMs = Date.now();
 
         print(`Access token: ${prettyJSON(this._tokenPair.access_token)}`);
+        print(`Expires in: ${this._tokenPair.expires_in}s`);
 
         res.writeHead(200);
         res.end('Sign in finished, you can now close this window.');
@@ -144,6 +148,37 @@ export class DigitalFactoryDemo {
         };
     }
 
+    private async _checkTokenExpiration(): Promise<any> {
+        if (!this._tokenNeedsRefresh()) {
+            return;
+        }
+        print('Trying to refresh the token');
+        this._tokenPair = await this._requestTokenRefresh();
+        this._tokenTimestampMs = Date.now();
+
+        print(`New access token: ${prettyJSON(this._tokenPair.access_token)}`);
+        print(`Expires in: ${this._tokenPair.expires_in}s`);
+    }
+
+    private async _requestTokenRefresh(): Promise<TokenResponse> {
+        const tokenResponse = await fetch(this._token_url, {
+            method: 'POST',
+            body: new URLSearchParams({
+                client_id: CLIENT_ID,
+                grant_type: 'refresh_token',
+                refresh_token: this._tokenPair.refresh_token,
+                scope: SCOPES,
+            }),
+        });
+
+        return tokenResponse.json();
+    }
+
+    private _tokenNeedsRefresh(): boolean {
+        // Refresh 30s before the token expires.
+        return Date.now() > (this._tokenTimestampMs + 1000 * (this._tokenPair.expires_in - 30));
+    }
+
     async httpGetDigitalFactory(url: string): Promise<any> {
         const response = await fetch(url, {
             method: 'GET',
@@ -181,6 +216,7 @@ export class DigitalFactoryDemo {
     }
 
     async createProject(name: string): Promise<any> {
+        await this._checkTokenExpiration();
         const response = await this.httpPutDigitalFactory(
             `${API_ROOT_URL}/cura/v1/projects`,
             {
@@ -198,6 +234,7 @@ export class DigitalFactoryDemo {
         const contentLength = fileContents.byteLength;
         const mimeType = 'application/x-ufp';
 
+        await this._checkTokenExpiration();
         const jobUploadResponse = await this.httpPutDigitalFactory(`${API_ROOT_URL}/cura/v1/jobs/upload`, {
             data: {
                 job_name: filename,
@@ -218,6 +255,7 @@ export class DigitalFactoryDemo {
     }
 
     async addCommentToProject(projectId: string, comment: string): Promise<void> {
+        await this._checkTokenExpiration();
         const response = await this.httpPutDigitalFactory(
             `${API_ROOT_URL}/cura/v1/projects/${projectId}/comments`,
             {
@@ -230,6 +268,7 @@ export class DigitalFactoryDemo {
     }
 
     async submitPrintJob(jobId: string, clusterId: string): Promise<any> {
+        await this._checkTokenExpiration();
         const response = await this.httpPostDigitalFactory(
             `${API_ROOT_URL}/connect/v1/clusters/${clusterId}/print/${jobId}`,
             { data: {} },
@@ -242,11 +281,13 @@ export class DigitalFactoryDemo {
             limit: '20',
             status: 'in_progress',
         });
+        await this._checkTokenExpiration();
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/connect/v1/print_jobs?${query}`);
         return response.data;
     }
 
     async getClusters(): Promise<any> {
+        await this._checkTokenExpiration();
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/connect/v1/clusters`);
         return response.data;
     }
@@ -258,6 +299,7 @@ export class DigitalFactoryDemo {
             search: 'demo',
             shared: 'false',
         });
+        await this._checkTokenExpiration();
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/cura/v1/projects?${query}`);
         return response.data;
     }

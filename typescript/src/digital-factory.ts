@@ -303,4 +303,50 @@ export class DigitalFactoryDemo {
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/cura/v1/projects?${query}`);
         return response.data;
     }
+
+    async generateReport(): Promise<string> {
+        await this._checkTokenExpiration();
+
+        print('Fetching the list of cluster/printer IDs');
+        const clusters = await this.getClusters();
+        const clusterIds = clusters.map((c) => c.cluster_id);
+
+        const today = new Date();
+        const sevenDaysAgoMs = Date.now() - 24 * 60 * 60 * 7 * 1000;
+        const sevenDaysAgo = new Date(sevenDaysAgoMs);
+
+        print('Requesting report generation');
+        const response = <{ data: ReportStatus }> await this.httpPutDigitalFactory(`${API_ROOT_URL}/report/v1/reports`,
+            {
+                data: {
+                    cluster_ids: clusterIds,
+                    start_date: sevenDaysAgo.toISOString(),
+                    end_date: today.toISOString(),
+                    report_type: 'print_jobs',
+                },
+            });
+
+        let status: ReportStatus = response.data;
+        const reportID = status.report_id;
+        while (status.status === 'pending' || status.status === 'processing') {
+            print('Waiting one second');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            print('Checking the status of the report');
+            const statusResponse = <{ data: ReportStatus }> await this.httpGetDigitalFactory(`${API_ROOT_URL}/report/v1/reports/${reportID}`);
+            status = statusResponse.data;
+        }
+        if (status.status !== 'success') {
+            print('Something went wrong while generating the report.', status);
+            return null;
+        }
+
+        return status.download_url;
+    }
+}
+
+interface ReportStatus {
+    download_url?: string;
+    report_id: string;
+    status: 'pending' | 'processing' | 'success' | 'failed' | 'unknown';
 }

@@ -46,6 +46,9 @@ async function main(): Promise<void> {
     } else {
         print('No projects found.\n');
     }
+
+    const reportUrl = await demo.generateReport();
+    print(`Received report download URL: ${reportUrl}`);
 }
 
 main()

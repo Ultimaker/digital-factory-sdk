@@ -47,7 +47,21 @@ async function main(): Promise<void> {
         print('No projects found.\n');
     }
 
-    const reportUrl = await demo.generateReport();
+    print('');
+    const clusters = await demo.getClusters();
+    if (clusters.length !== 0) {
+        const onlineClusters = clusters.filter((c) => c.is_online);
+        if (onlineClusters.length !== 0) {
+            const webcamClusterId = onlineClusters[0].cluster_id;
+            const webcamPrinterId = onlineClusters[0].host_printer.uuid;
+            const imageUrl = await demo.getWebcamImage(webcamClusterId, webcamPrinterId);
+            print(`Received webcam image URL: ${imageUrl}`);
+        }
+    }
+
+    print('');
+    const clusterIds = clusters.map((c) => c.cluster_id);
+    const reportUrl = await demo.generateReport(clusterIds);
     print(`Received report download URL: ${reportUrl}`);
 }
 

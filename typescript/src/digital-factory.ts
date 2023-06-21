@@ -286,7 +286,7 @@ export class DigitalFactoryDemo {
         return response.data;
     }
 
-    async getClusters(): Promise<any> {
+    async getClusters(): Promise<Cluster[]> {
         await this._checkTokenExpiration();
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/connect/v1/clusters`);
         return response.data;
@@ -303,4 +303,88 @@ export class DigitalFactoryDemo {
         const response = await this.httpGetDigitalFactory(`${API_ROOT_URL}/cura/v1/projects?${query}`);
         return response.data;
     }
+
+    async generateReport(clusterIds: string[]): Promise<string> {
+        await this._checkTokenExpiration();
+
+        print('Requesting report generation');
+        const today = new Date();
+        const sevenDaysAgoMs = Date.now() - 24 * 60 * 60 * 7 * 1000;
+        const sevenDaysAgo = new Date(sevenDaysAgoMs);
+        const response = <{ data: ReportStatus }> await this.httpPutDigitalFactory(`${API_ROOT_URL}/report/v1/reports`,
+            {
+                data: {
+                    cluster_ids: clusterIds,
+                    start_date: sevenDaysAgo.toISOString(),
+                    end_date: today.toISOString(),
+                    report_type: 'print_jobs',
+                },
+            });
+
+        let status: ReportStatus = response.data;
+        const reportID = status.report_id;
+        while (status.status === 'pending' || status.status === 'processing') {
+            print('Waiting one second');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            print('Checking the status of the report');
+            const statusResponse = <{ data: ReportStatus }> await this.httpGetDigitalFactory(`${API_ROOT_URL}/report/v1/reports/${reportID}`);
+            status = statusResponse.data;
+        }
+        if (status.status !== 'success') {
+            print('Something went wrong while generating the report.', status);
+            return null;
+        }
+
+        return status.download_url;
+    }
+
+    async getWebcamImage(clusterId: string, clusterPrinterId: string): Promise<string> {
+        await this._checkTokenExpiration();
+
+        print('Requesting webcam image');
+        const response = <{data: WebcamActionStatusResponse}> await this.httpPostDigitalFactory(`${API_ROOT_URL}/connect/v1/clusters/${clusterId}/printers/${clusterPrinterId}/action/get_webcam_snapshot`,
+            { data: {} });
+
+        const actionId = response.data.action_id;
+        let status = response.data;
+        while (status.status === 'pending' || status.status === 'sent') {
+            print('Waiting one second');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            print('Checking the status of the webcam image');
+            const statusResponse = <{data: WebcamActionStatusResponse}> await this.httpGetDigitalFactory(`${API_ROOT_URL}/connect/v1/clusters/${clusterId}/action_status/${actionId}`);
+            status = statusResponse.data;
+        }
+        if (status.status !== 'success') {
+            print('Something went wrong while fetching the webcam image.', status);
+            return null;
+        }
+        return status.status_details.value.image_url;
+    }
+}
+
+interface ReportStatus {
+    download_url?: string;
+    report_id: string;
+    status: 'pending' | 'processing' | 'success' | 'failed' | 'unknown';
+}
+
+interface WebcamActionStatusResponse {
+    action_id: string;
+    status: 'success' | 'failed' | 'pending' | 'sent' | 'unknown';
+    status_details: {
+        type: string;
+        value: {
+            image_url: string
+        }};
+}
+
+// A minimal Cluster definition
+interface Cluster {
+    cluster_id: string;
+    is_online: boolean;
+    host_printer: {
+        uuid: string;
+    };
 }

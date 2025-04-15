@@ -7,6 +7,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as env from 'dotenv';
 import { print, prettyJSON } from './print';
+import { URL, URLSearchParams } from "url";
+import { exec } from 'child_process';
 
 const DEFAULT_CLOUD_ACCOUNT_API_ROOT = 'https://account.ultimaker.com';
 const OAUTH_SERVER_URL = DEFAULT_CLOUD_ACCOUNT_API_ROOT;
@@ -46,6 +48,32 @@ export class DigitalFactoryDemo {
 
     private _signInCompleteResolve: () => void = null;
 
+    private _openUrlInBrowser(url: string): void {
+        // Detect platform and open URL in the default browser
+        const platform = process.platform;
+        let command = '';
+        
+        if (platform === 'darwin') {
+            // macOS
+            command = `open "${url}"`;
+        } else if (platform === 'win32') {
+            // Windows
+            command = `start "" "${url}"`;
+        } else {
+            // Linux
+            command = `xdg-open "${url}"`;
+        }
+
+        exec(command, (error) => {
+            if (error) {
+                // If opening the browser fails, log to file instead
+                print('Failed to open browser automatically.');
+                print('Please open the following URL manually:');
+                print(url);
+            }
+        });
+    }
+
     signIn(): Promise<void> {
         this._callbackServer = createServer(this._handleRequest.bind(this));
         this._callbackServer.listen(CALLBACK_SERVER_PORT);
@@ -66,10 +94,9 @@ export class DigitalFactoryDemo {
         });
         const signInUrl = `${this._authorizationUrl}?${query}`;
 
-        print('Open the following URL in your browser and log in to Ultimaker Digital Factory:');
-        print('');
-        print(`    ${signInUrl}`);
-        print('');
+        // Open the URL in the default browser instead of logging it
+        this._openUrlInBrowser(signInUrl);
+        
         return new Promise<void>((resolve, reject) => {
             this._signInCompleteResolve = resolve;
             process.on('SIGINT', reject);

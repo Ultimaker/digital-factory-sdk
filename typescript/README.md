@@ -13,7 +13,9 @@ It demonstrates a number of actions:
 
 
 # How to run
-Before you run this demo application make sure you have configured it properly. First you need to add a `.env` file in the `secrets` folder and populate it using the `example.env` file. After that just run:
+Before you run this demo application you will need to do some configuration. Update `config.env` with a `CLUSTER_ID` and the path to a UFP file. A `CLUSTER_ID` can be found by visiting a printer's page in Digital Factory and taking the long ID after the `https://digitalfactory.ultimaker.com/app/jobs/` URL.
+
+Now just run:
 ```sh
 npm install
 

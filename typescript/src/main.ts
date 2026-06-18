@@ -1,71 +1,113 @@
-import { DigitalFactoryDemo } from './digital-factory';
-import { prettyJSON, print } from './print';
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { DigitalFactoryDemo } from "./digital-factory";
+import { print } from "./print";
+import * as fs from "fs";
 
-async function main(): Promise<void> {
-    const demo = new DigitalFactoryDemo();
-    await demo.signIn();
-    print('Sign in completed.\n');
-
-    print('Creating demo project...');
-    const { library_project_id } = await demo.createProject('Demo project');
-    print(`Created project with ID: ${library_project_id}\n`);
-
-    print('Adding comment to demo project...');
-    await demo.addCommentToProject(library_project_id, 'Demo comment');
-    print('Comment added.\n');
-
-    const clusterId = process.env.CLUSTER_ID;
-    const ufpPath = process.env.UFP_PATH;
-    if (clusterId !== 'your-cluster-id' && ufpPath !== 'path/to/your/file.ufp') {
-        print('Uploading file to demo project...');
-        const { job_id } = await demo.uploadFileToProject(library_project_id, ufpPath);
-        print(`Uploaded file with ID: ${job_id}\n`);
-        print(`Visit https://digitalfactory.ultimaker.com/app/library/project/${library_project_id} to see your project\n`);
-
-        print('Submitting a print job');
-        const { job_instance_uuid } = await demo.submitPrintJob(job_id, clusterId);
-        print(`Submitted print job with ID: ${job_instance_uuid}\n`);
-    } else {
-        print('(Skipping print job submission. Configure a cluster ID and UFP in \'config.env\' for this part of the demo.)');
-    }
-
-    print('Getting running print jobs.');
-    const printJobs = await demo.getRunningPrintJobs();
-    if (printJobs.length > 0) {
-        print(`Total print jobs retrieved: ${printJobs.length}`);
-        print(`First print job retrieved: ${prettyJSON(printJobs[0])}\n`);
-    } else {
-        print('No running print jobs found. Sometimes it takes up to 10 second for new print jobs to show up.\n');
-    }
-
-    print('Searching projects.');
-    const projects = await demo.searchProjects();
-    if (projects.length > 0) {
-        print(`Total projects retrieved: ${projects.length}`);
-        print(`First project retrieved: ${prettyJSON(projects[0])}\n`);
-    } else {
-        print('No projects found.\n');
-    }
-
-    print('');
-    const clusters = await demo.getClusters();
-    const onlineClusters = clusters.filter((c) => c.is_online);
-    if (onlineClusters.length !== 0) {
-        const webcamClusterId = onlineClusters[0].cluster_id;
-        const webcamPrinterId = onlineClusters[0].host_printer.uuid;
-        const imageUrl = await demo.getWebcamImage(webcamClusterId, webcamPrinterId);
-        print(`Received webcam image URL: ${imageUrl}`);
-    }
-
-    print('');
-    const clusterIds = clusters.map((c) => c.cluster_id);
-    const reportUrl = await demo.generateReport(clusterIds);
-    print(`Received report download URL: ${reportUrl}`);
+// Define an interface based on the structure observed in temp.json
+interface ExtruderConfig {
+    extruder_index: number;
+    material?: {
+        brand?: string;
+        color?: string;
+        guid?: string;
+        material?: string; // Assuming this is the type
+    };
+    print_core_id?: string;
+    temperature?: number;
 }
 
-main()
-    .then(() => process.exit(0))
-    .catch((error: unknown) => {
-        console.error(error); // eslint-disable-line no-console
-        process.exit(1);
+interface HostPrinterInfo {
+    configuration?: ExtruderConfig[];
+    friendly_name?: string;
+    machine_variant?: string;
+    status?: string;
+    uuid: string;
+}
+
+interface ClusterInfo {
+    cluster_id?: string;
+    host_printer?: HostPrinterInfo;
+    // Add other relevant fields from temp.json if needed
+}
+
+// Redirect console output to avoid interfering with the stdio transport
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleInfo = console.info;
+
+// Redirect console outputs to prevent interference with JSON communication
+console.log = (...args) => {};
+console.error = (...args) => {};
+console.warn = (...args) => {};
+console.info = (...args) => {};
+
+// Custom logger function to use instead of console
+function log(...args: any[]) {
+    // Log to a file instead of stdout/stderr
+    fs.appendFileSync('mcp-server.log', args.join(' ') + '\n');
+}
+
+async function main() {
+    const demo = new DigitalFactoryDemo();
+    await demo.signIn();
+    log("Signed in to Ultimaker Digital Factory.");
+
+    const server = new McpServer({
+        name: "Ultimaker Digital Factory MCP",
+        version: "1.0.0"
     });
+
+    // Expose printers as a flattened list resource
+    server.resource(
+        "printers",
+        "ultimaker://printers", // Define a URI for the printers resource
+        async (uri) => {
+            // Cast the result to the defined interface
+            const clusters = await demo.getClusters() as ClusterInfo[];
+
+            // Flatten the cluster data into the desired printer list format
+            const printers = clusters.map(cluster => {
+                // Handle cases where host_printer might be missing
+                if (!cluster.host_printer) {
+                    return null; // Skip clusters without host_printer info
+                }
+                const printer = cluster.host_printer;
+
+                // Map extruder configuration
+                const extruders = printer.configuration?.map(extruder => ({
+                    brand: extruder.material?.brand ?? 'N/A',
+                    type: extruder.material?.material ?? 'N/A', // Use 'material' field as type
+                    color: extruder.material?.color ?? 'N/A',
+                    print_core_id: extruder.print_core_id ?? 'N/A'
+                })) ?? []; // Default to empty array if configuration is missing
+
+                return {
+                    cluster_id: cluster.cluster_id ?? 'N/A',
+                    friendly_name: printer.friendly_name ?? 'N/A',
+                    machine_variant: printer.machine_variant ?? 'N/A',
+                    status: printer.status ?? 'N/A',
+                    extruders: extruders
+                };
+            }).filter(printer => printer !== null); // Remove any null entries from skipped clusters
+
+            return {
+                contents: [{
+                    uri: uri.href, // Use the requested URI
+                    text: JSON.stringify(printers, null, 2)
+                }]
+            };
+        }
+    );
+
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+}
+
+main().catch((err) => {
+    // Log the error to file instead of console
+    log(`Error in MCP server: ${err.message}`);
+    log(`Stack trace: ${err.stack}`);
+    process.exit(1);
+});

@@ -14,6 +14,8 @@
       "jsx": "react",
       "experimentalDecorators": true,
       "baseUrl": ".",
-      "emitDecoratorMetadata": true
+      "emitDecoratorMetadata": true,
+      "lib": ["es2020", "dom"],
+      "types": ["node"]
   }
 }
